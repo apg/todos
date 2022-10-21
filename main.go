@@ -141,6 +141,15 @@ func main() {
 		log.Fatalf("SQL: error opening db: %q", err)
 	}
 
+	/* Just for some more customization */
+	user := os.Getenv("USER")
+	if user == "" { user = "user" }
+	quote := os.Getenv("QUOTE")
+	connectedAs := os.Getenv("CONNECTED_AS")
+	index = strings.ReplaceAll(index, "%%USER%%", user)
+	index = strings.ReplaceAll(index, "%%QUOTE%%", quote)
+	index = strings.ReplaceAll(index, "%%CONNECTED_AS%%", connectedAs)
+
 	ugh := NewUghRM(db)
 	api := &handler{ugh: ugh}
 
@@ -178,6 +187,9 @@ var index = `
        width: 600px;
        margin: 0 auto;
        text-align: left;
+      }
+      footer em {
+       color: #111;
       }
       #todos, #todo-new {
        margin: 0;
@@ -224,7 +236,7 @@ var index = `
   </head>
   <body>
     <header>
-      <h1>TODOs on <span>Tripods</span></h1>
+      <h1>%%USER%%'s TODOs (not really) on <span>Tripods</span></h1>
     </header>
     <main>
       <ul id="todos">
@@ -239,7 +251,8 @@ var index = `
       </ul>
     </main>
     <footer>
-      &copy; 2005 73 Sinewaves, LLC.
+      &copy; 2005 73 Sinewaves, LLC. &mdash; <q>%%QUOTE%%</q> &mdash; <em>connected as %%CONNECTED_AS%%</em>
+
     </footer>
   </body>
   <script>
