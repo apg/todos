@@ -1,4 +1,15 @@
 #!/bin/env bash
+
+# Assuming you just did `cd .. && make dev/docker-db`
+echo "====> CREATING todos TABLE"
+psql "postgres://postgres:postgres@127.0.0.1:5432/todos?sslmode=disable" <<EOF
+CREATE TABLE IF NOT EXISTS todos (
+  id SERIAL PRIMARY KEY,
+  title TEXT,
+  done BOOL
+);
+EOF
+
 # Assuming you just did: `vault server -dev`
 export VAULT_ADDR='http://127.0.0.1:8200'
 
@@ -22,7 +33,8 @@ vault write database/config/todos-database \
 vault write database/roles/todos-role \
       db_name="todos-database" \
       creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
-        GRANT ALL ON SCHEMA public TO \"{{name}}\";" \
+        GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\"; \
+        GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\";" \
       default_ttl="24h" \
       max_ttl="48h"
 

@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,16 +16,6 @@ import (
 
 type handler struct {
 	ugh *UghRM
-}
-
-var ddl = map[string]string {
-	"postgres": `
-CREATE TABLE IF NOT EXISTS todos (
-  id SERIAL PRIMARY KEY,
-  title TEXT,
-  done BOOL
-);
-`,
 }
 
 func die(w http.ResponseWriter, status int, message string) bool {
@@ -104,10 +93,10 @@ func (h *handler) DoneTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rs := h.ugh.Get("todos", id)
-	// if rs.IsErr() {
-	// 	die(w, http.StatusNotFound, "not found")
-	// 	return
-	// }
+	if rs.IsErr() {
+		die(w, http.StatusNotFound, "not found")
+		return
+	}
 	todo := rs.OK()
 
 	d := false
@@ -143,37 +132,16 @@ func (h *handler) DeleteTodo(w http.ResponseWriter, r *http.Request) {
 }
 
 func openDB(dbURL string) *Result[*sql.DB] {
-	var (
-		db *sql.DB
-		err error
-	)
-	bits := strings.SplitN(dbURL, ":", 2)
-	switch bits[0] {
-	case "postgres":
-		db, err = sql.Open(bits[0], dbURL)
-	// case "sqlite3":
-	// TODO: quoting in sqlite uses ?, whereas postgres uses $1.
-	//   Plus additional incompatibilities.
-	// 	db, err = sql.Open(bits[0], strings.TrimPrefix(bits[1], "//"))
-	default:
-		return Err[*sql.DB](errors.New("unknown database"))
-	}
-
-	if err == nil {
-		log.Println("Creating table if it doesn't exist")
-		_, err = db.Exec(ddl[bits[0]])
-	}
-
-	return Lift(db, err)
+	return Lift(sql.Open("postgres", dbURL))
 }
 
 func main() {
-	rs := openDB(os.Getenv("DATABASE_URL"))
-	if rs.IsErr() {
-		log.Fatalf("SQL: error opening db: %q", rs.Err())
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatalf("SQL: error opening db: %q", err)
 	}
 
-	ugh := NewUghRM(rs.OK())
+	ugh := NewUghRM(db)
 	api := &handler{ugh: ugh}
 
 	http.HandleFunc("/api/list", api.ListTodos)
